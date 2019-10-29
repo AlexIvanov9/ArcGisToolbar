@@ -1,6 +1,7 @@
 import arcpy
 import pythonaddins
 import subprocess
+import webbrowser
 import os
 import glob
 import arcpy_utils as a
@@ -9,6 +10,7 @@ import datetime
 import logging
 
 class Tools(object):
+        
     
     def get_visit_path(self):
         visit_sfile = glob.glob(os.path.join('D:\\Flight ' + str(flight) + '\\field borders\\*{}*.shp'.format(fid)))
@@ -30,6 +32,7 @@ class Tools(object):
             layer = self.add_layer(path)
         return
 
+
     def get_log(self,nameapp,message,infol = None, errorl = None):
         tfolder = os.path.join('C:\\', 'Users', 'Administrator', 'Desktop','Toolbar')# path to save log file 
         if not os.path.exists(tfolder):
@@ -47,9 +50,9 @@ class Tools(object):
             logger.info(message)
         if errorl is not None:
             logger.error(message)
-        
         return 
         
+
 
 class ButtonClass1(object):
     """Implementation for Outsourcing_tools_addin.button (Button)"""
@@ -57,12 +60,15 @@ class ButtonClass1(object):
         self.enabled = True
         self.checked = False
         self.canRunInBackground = True
+        
+        
     def del_pyr(self,path):
         pre = os.path.splitext(path)
         lis = glob.glob(pre[0] + '*')
         if len(lis) > 0:
             for file in lis:os.remove(file)
         return 
+    
     
     def check_cs(self, imagepath):
         
@@ -83,18 +89,14 @@ class ButtonClass1(object):
             arcpy.DefineProjection_management(new, sc)
         else: 
             arcpy.BatchBuildPyramids_management(new)
-            #arcpy.MakeRasterLayer_management(new, new)
             arcpy.DefineProjection_management(new, sc)
         pass    
     
     
     def onClick(self):
-        
-        print (image + 'in on click')
         mxd = arcpy.mapping.MapDocument("CURRENT")  
         df = arcpy.mapping.ListDataFrames(mxd, "*")[0]
         args = ['C:/Users/administrator/Anaconda3/envs/improc/python', 'D:\Program Files\Reg_tool\Install\Registered.py',image]
-        print (len(args))
         pre, ext = os.path.splitext(image)
         txt = (pre + '.txt')
         pts = (pre + '.pts')
@@ -145,6 +147,86 @@ class ButtonClass3(object):
         a.add_farm(fid)
         pass
 
+class ButtonClass37(object):
+    """Implementation for Outsourcing_tools_addin.button_6 (Button)"""
+    def __init__(self):
+        self.enabled = True
+        self.checked = False
+        self.canRunInBackground = True
+        
+        
+    def syscall(self,call, error_str=None, shell=False):
+    """
+    Wrapper for very simple call to subprocess to do something on the system
+    via python.
+
+    Parameters
+    ----------
+    call : list
+        Strings that make up the system call.
+    error_str : str
+        What to print in the event of an OSError in the call.
+    shell : bool (opt)
+        Whether to make call in a shell (see subprocess.Popen for more).
+        Default is False.
+
+    Returns
+    -------
+    None
+    """
+
+    try:
+        output = subprocess..Popen(
+                call, stdout=subprocess..PIPE, stderr=subprocess..PIPE,
+                stdin=subprocess..PIPE, shell=shell).communicate()[0].decode("utf-8")
+    except OSError as e:
+        if error_str is not None:
+            print(error_str)
+        print(e.strerror)
+        output = e.strerror
+
+    return output
+
+
+
+
+    def shapefile_to_kml(self,shapefilename, kmlfilename=None):
+        """
+        Converts contents of a shapefile to kml.
+    
+        Parameters
+        ----------
+        shapefilename : str
+            Full path of shapefile to convert.
+        kmlfilename : str
+            Full path of kml to be saved.
+    
+        Returns
+        -------
+    
+        kmlfilename : str
+            If exists, full path of output kml.
+        """
+    
+        kmlfilename = kmlfilename or shapefilename.replace('shp', 'kml')
+        kmlfilename = os.path.normpath(kmlfilename)
+        call = ['ogr2ogr', '-f', 'KML', kmlfilename, shapefilename]
+        syscall(call)
+        if os.path.isfile(kmlfilename):
+            webbrowser.open(kmlfilename)
+            return kmlfilename
+        else:
+            return None
+        
+        
+    def onClick(self):
+        # fid is global and created when we choose image
+        #a.add_farm(fid)
+        shapefile_to_kml(self,image)
+        pass
+
+
+
 class ButtonClass4(object):
     """Implementation for Outsourcing_tools_addin.button_2 (Button)"""
     def __init__(self):
@@ -174,6 +256,8 @@ class ButtonClass4(object):
                 get.get_log("Updated shp button","Failed copy shp for Flight {}, field {} the error is : {}. Donwload from database.".format(flight,fid,e), infol = 1)
         pass
 
+
+
 class ButtonClass5(object):
     """Implementation for Outsourcing_tools_addin.button_3 (Button)"""
     def __init__(self):
@@ -202,17 +286,20 @@ class ComboBoxClass2(object):
         self.dropdownWidth = 'WWWWWWWWWWWWWWWWWWWWWWWW'
         self.width = 'WWWWWWWWWW'
     def onSelChange(self, selection):
-        layer = arcpy.mapping.ListLayers(self.mxd, selection)[0]
+        
         global image
+        global name
+        global fid
+        global flight
+        
+        layer = arcpy.mapping.ListLayers(self.mxd, selection)[0]
+        
         image = arcpy.Describe(layer).catalogPath
         
-        global name
         name = arcpy.Describe(image).name
         
-        global fid
         fid = a.get_fid_from_filename(name) 
         
-        global flight
         path = os.path.normpath(image)
         p = path.split(os.sep)
         for i in p:
@@ -220,10 +307,14 @@ class ComboBoxClass2(object):
                 flight = int(i[7:])
                 break
         pass
-    
+
+
     
     def onEditChange(self, text):
         self.flight = text
+        global fid
+        fid = text
+        
         print (self.flight)
         return text
     def onFocus(self, focused):
@@ -232,17 +323,23 @@ class ComboBoxClass2(object):
             layers = arcpy.mapping.ListLayers(self.mxd)
             self.items = []
             for layer in layers:
+                self.items.append(layer.name)
+            """ only for rasters
+            for layer in layers:
                 if layer.isRasterLayer == True:
                     self.items.append(layer.name)
+            """
         pass
-    
+
+
     def downsync(self,flight, farm, letter):
         print (flight,farm)
         args = ["C:/Users/Administrator/Anaconda3/envs/improc/python.exe", 
                 "D:/Program Files/Reg_tool/Install/Downsync.py",flight,farm]
         process = subprocess.Popen(args)
 
- 
+
+
     def onEnter(self):
         letter = ''
         if len(self.flight) > 0:
@@ -256,6 +353,7 @@ class ComboBoxClass2(object):
         pass
     def refresh(self):
         pass
+
 
 
 class ButtonClass6(object):
@@ -279,7 +377,6 @@ class ButtonClass6(object):
             #["C:\Users\Administrator\Anaconda3\envs\improc\python.exe", "-c", "import improc,glob,os;registered_files = glob.glob(os.path.join('D:\\\\', 'Flight {}', 'registered', '*{}*.tif').format("+ str(flight)+","+str(fid)+"));print(type(registered_files));improc.postprocess.generate_products(registered_files)"]
             #cmd = 'C:\\Users\\Administrator\\Anaconda3\\envs\\improc\\python.exe "D:/Program Files/Reg_tool/Install/products.py"'
             #os.system(cmd)
-        
     
 class Active_Edit_Session(object):
     """Implementation for Outsourcing_tools_addin.extension32 (Extension)"""
