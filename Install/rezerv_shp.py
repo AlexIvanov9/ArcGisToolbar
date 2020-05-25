@@ -10,8 +10,6 @@ os.environ['PROJ_LIB'] = os.path.join('C:\\', 'Users', 'Administrator', 'Anacond
 try:
     print (sys.argv[1])
     print (sys.argv[2])
-    improc.reload_database()
-    time.sleep(3)
     improc.dbops.spatial.save_visit_shapefile(int(sys.argv[1]),int(sys.argv[2]), overwrite=True )
 except Exception as e:
     print (e)
